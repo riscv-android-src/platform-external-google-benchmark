@@ -17,7 +17,6 @@
 LOCAL_PATH := $(call my-dir)
 
 google_benchmark_c_flags := \
-  -no-integrated-as \
   -DBENCHMARK_ANDROID \
   -DHAVE_POSIX_REGEX \
 
