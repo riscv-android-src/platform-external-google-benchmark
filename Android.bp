@@ -32,6 +32,7 @@ cc_library_static {
         "src/benchmark.cc",
         "src/colorprint.cc",
         "src/commandlineflags.cc",
+        "src/complexity.cc",
         "src/console_reporter.cc",
         "src/csv_reporter.cc",
         "src/json_reporter.cc",
