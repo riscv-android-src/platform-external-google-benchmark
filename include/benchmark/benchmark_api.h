@@ -137,6 +137,13 @@ static void BM_MultiThreaded(benchmark::State& state) {
   }
 }
 BENCHMARK(BM_MultiThreaded)->Threads(4);
+
+
+If a benchmark runs a few milliseconds it may be hard to visually compare the
+measured times, since the output data is given in nanoseconds per default. In
+order to manually set the time unit, you can specify it manually:
+
+BENCHMARK(BM_test)->Unit(benchmark::kMillisecond);
 */
 
 #ifndef BENCHMARK_BENCHMARK_API_H_
@@ -153,10 +160,17 @@ class BenchmarkReporter;
 
 void Initialize(int* argc, char** argv);
 
-// Otherwise, run all benchmarks specified by the --benchmark_filter flag,
-// and exit after running the benchmarks.
-void RunSpecifiedBenchmarks();
-void RunSpecifiedBenchmarks(BenchmarkReporter* reporter);
+// Generate a list of benchmarks matching the specified --benchmark_filter flag
+// and if --benchmark_list_tests is specified return after printing the name
+// of each matching benchmark. Otherwise run each matching benchmark and
+// report the results.
+//
+// The second overload reports the results using the specified 'reporter'.
+//
+// RETURNS: The number of matching benchmarks.
+size_t RunSpecifiedBenchmarks();
+size_t RunSpecifiedBenchmarks(BenchmarkReporter* reporter);
+
 
 // If this routine is called, peak memory allocation past this point in the
 // benchmark is reported at the end of the benchmark report line. (It is
@@ -193,61 +207,90 @@ Benchmark* RegisterBenchmarkInternal(Benchmark*);
 
 // The DoNotOptimize(...) function can be used to prevent a value or
 // expression from being optimized away by the compiler. This function is
-// intented to add little to no overhead.
-// See: http://stackoverflow.com/questions/28287064
-#if defined(__clang__) && defined(__GNUC__)
-// TODO(ericwf): Clang has a bug where it tries to always use a register
-// even if value must be stored in memory. This causes codegen to fail.
-// To work around this we remove the "r" modifier so the operand is always
-// loaded into memory.
+// intended to add little to no overhead.
+// See: https://youtu.be/nXaxk27zwlk?t=2441
+#if defined(__GNUC__)
 template <class Tp>
 inline BENCHMARK_ALWAYS_INLINE void DoNotOptimize(Tp const& value) {
-    asm volatile("" : "+m" (const_cast<Tp&>(value)));
+    asm volatile("" : : "g"(value) : "memory");
 }
-#elif defined(__GNUC__)
-template <class Tp>
-inline BENCHMARK_ALWAYS_INLINE void DoNotOptimize(Tp const& value) {
-    asm volatile("" : "+rm" (const_cast<Tp&>(value)));
+// Force the compiler to flush pending writes to global memory. Acts as an
+// effective read/write barrier
+inline BENCHMARK_ALWAYS_INLINE void ClobberMemory() {
+    asm volatile("" : : : "memory");
 }
 #else
 template <class Tp>
 inline BENCHMARK_ALWAYS_INLINE void DoNotOptimize(Tp const& value) {
     internal::UseCharPointer(&reinterpret_cast<char const volatile&>(value));
 }
+// FIXME Add ClobberMemory() for non-gnu compilers
 #endif
 
+// TimeUnit is passed to a benchmark in order to specify the order of magnitude
+// for the measured time.
+enum TimeUnit {
+  kNanosecond,
+  kMicrosecond,
+  kMillisecond
+};
+
+// BigO is passed to a benchmark in order to specify the asymptotic computational 
+// complexity for the benchmark. In case oAuto is selected, complexity will be 
+// calculated automatically to the best fit.
+enum BigO {
+  oNone,
+  o1,
+  oN,
+  oNSquared,
+  oNCubed,
+  oLogN,
+  oNLogN,
+  oAuto,
+  oLambda
+};
+
+// BigOFunc is passed to a benchmark in order to specify the asymptotic 
+// computational complexity for the benchmark.
+typedef double(BigOFunc)(int);
 
 // State is passed to a running Benchmark and contains state for the
 // benchmark to use.
 class State {
 public:
-  State(size_t max_iters, bool has_x, int x, bool has_y, int y, int thread_i, int n_threads);
+  State(size_t max_iters, bool has_x, int x, bool has_y, int y,
+        int thread_i, int n_threads);
 
-  // Returns true iff the benchmark should continue through another iteration.
+  // Returns true if the benchmark should continue through another iteration.
   // NOTE: A benchmark may not return from the test until KeepRunning() has
   // returned false.
   bool KeepRunning() {
     if (BENCHMARK_BUILTIN_EXPECT(!started_, false)) {
-        ResumeTiming();
-        started_ = true;
+      assert(!finished_);
+      started_ = true;
+      ResumeTiming();
     }
     bool const res = total_iterations_++ < max_iterations;
     if (BENCHMARK_BUILTIN_EXPECT(!res, false)) {
-        assert(started_);
+      assert(started_ && (!finished_ || error_occurred_));
+      if (!error_occurred_) {
         PauseTiming();
-        // Total iterations now is one greater than max iterations. Fix this.
-        total_iterations_ = max_iterations;
+      }
+      // Total iterations now is one greater than max iterations. Fix this.
+      total_iterations_ = max_iterations;
+      finished_ = true;
     }
     return res;
   }
 
-  // REQUIRES: timer is running
+  // REQUIRES: timer is running and 'SkipWithError(...)' has not been called
+  //           by the current thread.
   // Stop the benchmark timer.  If not called, the timer will be
   // automatically stopped after KeepRunning() returns false for the first time.
   //
   // For threaded benchmarks the PauseTiming() function acts
   // like a barrier.  I.e., the ith call by a particular thread to this
-  // function will block until all threads have made their ith call.
+  // function will block until all active threads have made their ith call.
   // The timer will stop when the last thread has called this function.
   //
   // NOTE: PauseTiming()/ResumeTiming() are relatively
@@ -255,19 +298,48 @@ public:
   // within each benchmark iteration, if possible.
   void PauseTiming();
 
-  // REQUIRES: timer is not running
+  // REQUIRES: timer is not running and 'SkipWithError(...)' has not been called
+  //           by the current thread.
   // Start the benchmark timer.  The timer is NOT running on entrance to the
   // benchmark function. It begins running after the first call to KeepRunning()
   //
   // For threaded benchmarks the ResumeTiming() function acts
   // like a barrier.  I.e., the ith call by a particular thread to this
-  // function will block until all threads have made their ith call.
+  // function will block until all active threads have made their ith call.
   // The timer will start when the last thread has called this function.
   //
   // NOTE: PauseTiming()/ResumeTiming() are relatively
   // heavyweight, and so their use should generally be avoided
   // within each benchmark iteration, if possible.
   void ResumeTiming();
+
+  // REQUIRES: 'SkipWithError(...)' has not been called previously by the
+  //            current thread.
+  // Skip any future iterations of the 'KeepRunning()' loop in the current
+  // thread and report an error with the specified 'msg'. After this call
+  // the user may explicitly 'return' from the benchmark.
+  //
+  // For threaded benchmarks only the current thread stops executing. If
+  // multiple threads report an error only the first error message is used.
+  // The current thread is no longer considered 'active' by
+  // 'PauseTiming()' and 'ResumingTiming()'.
+  //
+  // NOTE: Calling 'SkipWithError(...)' does not cause the benchmark to exit
+  // the current scope immediately. If the function is called from within
+  // the 'KeepRunning()' loop the current iteration will finish. It is the users
+  // responsibility to exit the scope as needed.
+  void SkipWithError(const char* msg);
+
+  // REQUIRES: called exactly once per iteration of the KeepRunning loop.
+  // Set the manually measured time for this benchmark iteration, which
+  // is used instead of automatically measured time if UseManualTime() was
+  // specified.
+  //
+  // For threaded benchmarks the SetIterationTime() function acts
+  // like a barrier.  I.e., the ith call by a particular thread to this
+  // function will block until all threads have made their ith call.
+  // The time will be set by the last thread to call this function.
+  void SetIterationTime(double seconds);
 
   // Set the number of bytes processed by the current benchmark
   // execution.  This routine is typically called once at the end of a
@@ -284,6 +356,19 @@ public:
   BENCHMARK_ALWAYS_INLINE
   size_t bytes_processed() const {
     return bytes_processed_;
+  }
+
+  // If this routine is called with complexity_n > 0 and complexity report is requested for the 
+  // family benchmark, then current benchmark will be part of the computation and complexity_n will
+  // represent the length of N.
+  BENCHMARK_ALWAYS_INLINE
+  void SetComplexityN(int complexity_n) {
+    complexity_n_ = complexity_n;
+  }
+
+  BENCHMARK_ALWAYS_INLINE
+  size_t complexity_length_n() {
+    return complexity_n_;
   }
 
   // If this routine is called with items > 0, then an items/s
@@ -305,10 +390,10 @@ public:
   // If this routine is called, the specified label is printed at the
   // end of the benchmark report line for the currently executing
   // benchmark.  Example:
-  //  static void BM_Compress(int iters) {
+  //  static void BM_Compress(benchmark::State& state) {
   //    ...
   //    double compress = input_size / output_size;
-  //    benchmark::SetLabel(StringPrintf("compress:%.1f%%", 100.0*compression));
+  //    state.SetLabel(StringPrintf("compress:%.1f%%", 100.0*compression));
   //  }
   // Produces output that looks like:
   //  BM_Compress   50         50   14115038  compress:27.3%
@@ -346,6 +431,7 @@ public:
 
 private:
   bool started_;
+  bool finished_;
   size_t total_iterations_;
 
   bool has_range_x_;
@@ -357,6 +443,11 @@ private:
   size_t bytes_processed_;
   size_t items_processed_;
 
+  int complexity_n_;
+
+public:
+  // FIXME: Make this private somehow.
+  bool error_occurred_;
 public:
   // Index of the executing thread. Values from [0, threads).
   const int thread_index;
@@ -390,6 +481,9 @@ public:
   // REQUIRES: The function passed to the constructor must accept an arg1.
   Benchmark* Arg(int x);
 
+  // Run this benchmark with the given time unit for the generated output report
+  Benchmark* Unit(TimeUnit unit);
+
   // Run this benchmark once for a number of values picked from the
   // range [start..limit].  (start and limit are always picked.)
   // REQUIRES: The function passed to the constructor must accept an arg1.
@@ -416,9 +510,19 @@ public:
   // Threads, etc.
   Benchmark* Apply(void (*func)(Benchmark* benchmark));
 
+  // Set the range multiplier for non-dense range. If not called, the range multiplier 
+  // kRangeMultiplier will be used.
+  Benchmark* RangeMultiplier(int multiplier);
+
   // Set the minimum amount of time to use when running this benchmark. This
   // option overrides the `benchmark_min_time` flag.
+  // REQUIRES: `t > 0`
   Benchmark* MinTime(double t);
+
+  // Specify the amount of times to repeat this benchmark. This option overrides
+  // the `benchmark_repetitions` flag.
+  // REQUIRES: `n > 0`
+  Benchmark* Repetitions(int n);
 
   // If a particular benchmark is I/O bound, runs multiple threads internally or
   // if for some reason CPU timings are not representative, call this method. If
@@ -426,6 +530,21 @@ public:
   // run, and in the printing of items/second or MB/seconds values.  If not
   // called, the cpu time used by the benchmark will be used.
   Benchmark* UseRealTime();
+
+  // If a benchmark must measure time manually (e.g. if GPU execution time is being
+  // measured), call this method. If called, each benchmark iteration should call
+  // SetIterationTime(seconds) to report the measured time, which will be used
+  // to control how many iterations are run, and in the printing of items/second
+  // or MB/second values.
+  Benchmark* UseManualTime();
+
+  // Set the asymptotic computational complexity for the benchmark. If called
+  // the asymptotic computational complexity will be shown on the output. 
+  Benchmark* Complexity(BigO complexity = benchmark::oAuto);
+
+  // Set the asymptotic computational complexity for the benchmark. If called
+  // the asymptotic computational complexity will be shown on the output.
+  Benchmark* Complexity(BigOFunc* complexity);
 
   // Support for running multiple copies of the same benchmark concurrently
   // in multiple threads.  This may be useful when measuring the scaling
@@ -491,11 +610,11 @@ public:
     virtual void Run(State& st) {
       this->SetUp(st);
       this->BenchmarkCase(st);
-      this->TearDown();
+      this->TearDown(st);
     }
 
     virtual void SetUp(const State&) {}
-    virtual void TearDown() {}
+    virtual void TearDown(const State&) {}
 
 protected:
     virtual void BenchmarkCase(State&) = 0;
@@ -534,9 +653,32 @@ protected:
 // Old-style macros
 #define BENCHMARK_WITH_ARG(n, a) BENCHMARK(n)->Arg((a))
 #define BENCHMARK_WITH_ARG2(n, a1, a2) BENCHMARK(n)->ArgPair((a1), (a2))
+#define BENCHMARK_WITH_UNIT(n, t) BENCHMARK(n)->Unit((t))
 #define BENCHMARK_RANGE(n, lo, hi) BENCHMARK(n)->Range((lo), (hi))
 #define BENCHMARK_RANGE2(n, l1, h1, l2, h2) \
   BENCHMARK(n)->RangePair((l1), (h1), (l2), (h2))
+
+#if __cplusplus >= 201103L
+
+// Register a benchmark which invokes the function specified by `func`
+// with the additional arguments specified by `...`.
+//
+// For example:
+//
+// template <class ...ExtraArgs>`
+// void BM_takes_args(benchmark::State& state, ExtraArgs&&... extra_args) {
+//  [...]
+//}
+// /* Registers a benchmark named "BM_takes_args/int_string_test` */
+// BENCHMARK_CAPTURE(BM_takes_args, int_string_test, 42, std::string("abc"));
+#define BENCHMARK_CAPTURE(func, test_case_name, ...)                       \
+    BENCHMARK_PRIVATE_DECLARE(func) =                                      \
+        (::benchmark::internal::RegisterBenchmarkInternal(                 \
+            new ::benchmark::internal::FunctionBenchmark(                  \
+                    #func "/" #test_case_name,                             \
+                    [](::benchmark::State& st) { func(st, __VA_ARGS__); })))
+
+#endif // __cplusplus >= 11
 
 // This will register a benchmark for a templatized function.  For example:
 //
