@@ -14,6 +14,9 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <chrono>
+#include <thread>
+#include <utility>
 
 #if defined(__GNUC__)
 # define BENCHMARK_NOINLINE __attribute__((noinline))
@@ -173,6 +176,49 @@ static void BM_ParallelMemset(benchmark::State& state) {
   }
 }
 BENCHMARK(BM_ParallelMemset)->Arg(10 << 20)->ThreadRange(1, 4);
+
+static void BM_ManualTiming(benchmark::State& state) {
+  size_t slept_for = 0;
+  int microseconds = state.range_x();
+  std::chrono::duration<double, std::micro> sleep_duration {
+    static_cast<double>(microseconds)
+  };
+
+  while (state.KeepRunning()) {
+    auto start   = std::chrono::high_resolution_clock::now();
+    // Simulate some useful workload with a sleep
+    std::this_thread::sleep_for(std::chrono::duration_cast<
+      std::chrono::nanoseconds>(sleep_duration));
+    auto end     = std::chrono::high_resolution_clock::now();
+
+    auto elapsed =
+      std::chrono::duration_cast<std::chrono::duration<double>>(
+        end - start);
+
+    state.SetIterationTime(elapsed.count());
+    slept_for += microseconds;
+  }
+  state.SetItemsProcessed(slept_for);
+}
+BENCHMARK(BM_ManualTiming)->Range(1, 1 << 14)->UseRealTime();
+BENCHMARK(BM_ManualTiming)->Range(1, 1 << 14)->UseManualTime();
+
+#if __cplusplus >= 201103L
+
+template <class ...Args>
+void BM_with_args(benchmark::State& state, Args&&...) {
+  while (state.KeepRunning()) {}
+}
+BENCHMARK_CAPTURE(BM_with_args, int_test, 42, 43, 44);
+BENCHMARK_CAPTURE(BM_with_args, string_and_pair_test,
+                  std::string("abc"), std::pair<int, double>(42, 3.8));
+
+void BM_non_template_args(benchmark::State& state, int, double) {
+  while(state.KeepRunning()) {}
+}
+BENCHMARK_CAPTURE(BM_non_template_args, basic_test, 0, 0);
+
+#endif // __cplusplus >= 201103L
 
 BENCHMARK_MAIN()
 
