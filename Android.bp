@@ -30,19 +30,18 @@ cc_library_static {
 
     srcs: [
         "src/benchmark.cc",
+        "src/benchmark_register.cc",
         "src/colorprint.cc",
         "src/commandlineflags.cc",
         "src/complexity.cc",
         "src/console_reporter.cc",
         "src/csv_reporter.cc",
         "src/json_reporter.cc",
-        "src/log.cc",
         "src/reporter.cc",
-        "src/re_posix.cc",
         "src/sleep.cc",
         "src/string_util.cc",
         "src/sysinfo.cc",
-        "src/walltime.cc",
+        "src/timers.cc",
     ],
     export_include_dirs: ["include"],
 }
