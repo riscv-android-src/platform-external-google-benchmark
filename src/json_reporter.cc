@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "benchmark/reporter.h"
+#include "benchmark/benchmark.h"
 #include "complexity.h"
 
 #include <algorithm>
@@ -154,10 +154,15 @@ void JSONReporter::PrintRunData(Run const& run) {
         << indent
         << FormatKV("items_per_second", RoundDouble(run.items_per_second));
   }
+  for(auto &c : run.counters) {
+    out << ",\n"
+        << indent
+        << FormatKV(c.first, RoundDouble(c.second));
+  }
   if (!run.report_label.empty()) {
     out << ",\n" << indent << FormatKV("label", run.report_label);
   }
   out << '\n';
 }
 
-}  // end namespace benchmark
+} // end namespace benchmark

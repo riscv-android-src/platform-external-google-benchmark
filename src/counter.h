@@ -11,17 +11,16 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-#ifndef BENCHMARK_REPORTER_H_
-#define BENCHMARK_REPORTER_H_
 
-#ifdef __DEPRECATED
-# ifndef BENCHMARK_WARNING_MSG
-#   warning the reporter.h header has been deprecated and will be removed, please include benchmark.h instead
-# else
-    BENCHMARK_WARNING_MSG("the reporter.h header has been deprecated and will be removed, please include benchmark.h instead")
-# endif
-#endif
+#include "benchmark/benchmark.h"
 
-#include "benchmark.h"  // For forward declaration of BenchmarkReporter
+namespace benchmark {
 
-#endif  // BENCHMARK_REPORTER_H_
+// these counter-related functions are hidden to reduce API surface.
+namespace internal {
+void Finish(UserCounters *l, double time, double num_threads);
+void Increment(UserCounters *l, UserCounters const& r);
+bool SameNames(UserCounters const& l, UserCounters const& r);
+} // end namespace internal
+
+} //end namespace benchmark
