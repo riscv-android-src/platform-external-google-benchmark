@@ -6,6 +6,9 @@
 #ifndef __has_feature
 #define __has_feature(x) 0
 #endif
+#ifndef __has_builtin
+#define __has_builtin(x) 0
+#endif
 
 #if defined(__clang__)
 #define COMPILER_CLANG
@@ -39,6 +42,8 @@
   #endif
 #elif defined(__FreeBSD__)
 #define BENCHMARK_OS_FREEBSD 1
+#elif defined(__NetBSD__)
+#define BENCHMARK_OS_NETBSD 1
 #elif defined(__linux__)
 #define BENCHMARK_OS_LINUX 1
 #elif defined(__native_client__)
@@ -52,6 +57,20 @@
 #if !__has_feature(cxx_exceptions) && !defined(__cpp_exceptions) \
      && !defined(__EXCEPTIONS)
 #define BENCHMARK_HAS_NO_EXCEPTIONS
+#endif
+
+#if defined(COMPILER_CLANG) || defined(COMPILER_GCC)
+#define BENCHMARK_MAYBE_UNUSED __attribute__((unused))
+#else
+#define BENCHMARK_MAYBE_UNUSED
+#endif
+
+#if defined(COMPILER_GCC) || __has_builtin(__builtin_unreachable)
+#define BENCHMARK_UNREACHABLE() __builtin_unreachable()
+#elif defined(COMPILER_MSVC)
+#define BENCHMARK_UNREACHABLE() __assume(false)
+#else
+#define BENCHMARK_UNREACHABLE() ((void)0)
 #endif
 
 #endif  // BENCHMARK_INTERNAL_MACROS_H_
