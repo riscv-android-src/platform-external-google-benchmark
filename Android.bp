@@ -27,6 +27,7 @@ cc_library_static {
         "-DBENCHMARK_ANDROID",
         "-DHAVE_POSIX_REGEX",
         "-Werror",
+        "-Wno-deprecated-declarations",
     ],
 
     srcs: [

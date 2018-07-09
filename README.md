@@ -2,6 +2,7 @@
 [![Build Status](https://travis-ci.org/google/benchmark.svg?branch=master)](https://travis-ci.org/google/benchmark)
 [![Build status](https://ci.appveyor.com/api/projects/status/u0qsyp7t1tk7cpxs/branch/master?svg=true)](https://ci.appveyor.com/project/google/benchmark/branch/master)
 [![Coverage Status](https://coveralls.io/repos/google/benchmark/badge.svg)](https://coveralls.io/r/google/benchmark)
+[![slackin](https://slackin-iqtfqnpzxd.now.sh/badge.svg)](https://slackin-iqtfqnpzxd.now.sh/)
 
 A library to support the benchmarking of functions, similar to unit-tests.
 
@@ -13,6 +14,8 @@ IRC channel: https://freenode.net #googlebenchmark
 
 [Additional Tooling Documentation](docs/tools.md)
 
+[Assembly Testing Documentation](docs/AssemblyTests.md)
+
 
 ## Building
 
@@ -20,7 +23,7 @@ The basic steps for configuring and building the library look like this:
 
 ```bash
 $ git clone https://github.com/google/benchmark.git
-# Benchmark requires GTest as a dependency. Add the source tree as a subdirectory.
+# Benchmark requires Google Test as a dependency. Add the source tree as a subdirectory.
 $ git clone https://github.com/google/googletest.git benchmark/googletest
 $ mkdir build && cd build
 $ cmake -G <generator> [options] ../benchmark
@@ -28,15 +31,16 @@ $ cmake -G <generator> [options] ../benchmark
 $ make
 ```
 
-Note that Google Benchmark requires GTest to build and run the tests. This
-dependency can be provided three ways:
+Note that Google Benchmark requires Google Test to build and run the tests. This
+dependency can be provided two ways:
 
-* Checkout the GTest sources into `benchmark/googletest`.
+* Checkout the Google Test sources into `benchmark/googletest` as above.
 * Otherwise, if `-DBENCHMARK_DOWNLOAD_DEPENDENCIES=ON` is specified during
   configuration, the library will automatically download and build any required
   dependencies.
-* Otherwise, if nothing is done, CMake will use `find_package(GTest REQUIRED)`
-  to resolve the required GTest dependency.
+
+If you do not wish to build and run the tests, add `-DBENCHMARK_ENABLE_GTEST_TESTS=OFF`
+to `CMAKE_ARGS`.
 
 
 ## Installation Guide
@@ -55,6 +59,7 @@ Now, let's clone the repository and build it
 ```
 git clone https://github.com/google/benchmark.git
 cd benchmark
+git clone https://github.com/google/googletest.git
 mkdir build
 cd build
 cmake .. -DCMAKE_BUILD_TYPE=RELEASE
@@ -67,7 +72,7 @@ We need to install the library globally now
 sudo make install
 ```
 
-Now you have google/benchmark installed in your machine 
+Now you have google/benchmark installed in your machine
 Note: Don't forget to link to pthread library while building
 
 ## Stable and Experimental Library Versions
@@ -81,6 +86,11 @@ Newer, experimental, features are implemented and tested on the
 to use, test, and provide feedback on the new features are encouraged to try
 this branch. However, this branch provides no stability guarantees and reserves
 the right to change and break the API at any time.
+
+## Prerequisite knowledge
+
+Before attempting to understand this framework one should ideally have some familiarity with the structure and format of the Google Test framework, upon which it is based. Documentation for Google Test, including a "Getting Started" (primer) guide, is available here:
+https://github.com/google/googletest/blob/master/googletest/docs/primer.md
 
 
 ## Example usage
@@ -108,7 +118,10 @@ BENCHMARK(BM_StringCopy);
 BENCHMARK_MAIN();
 ```
 
-Don't forget to inform your linker to add benchmark library e.g. through `-lbenchmark` compilation flag.
+Don't forget to inform your linker to add benchmark library e.g. through 
+`-lbenchmark` compilation flag. Alternatively, you may leave out the 
+`BENCHMARK_MAIN();` at the end of the source file and link against 
+`-lbenchmark_main` to get the same default behavior.
 
 The benchmark library will reporting the timing for the code within the `for(...)` loop.
 
@@ -817,7 +830,7 @@ BM_SetInsert/1024/10                       33157      33648      21431  1.13369M
 The JSON format outputs human readable json split into two top level attributes.
 The `context` attribute contains information about the run in general, including
 information about the CPU and the date.
-The `benchmarks` attribute contains a list of ever benchmark run. Example json
+The `benchmarks` attribute contains a list of every benchmark run. Example json
 output looks like:
 ```json
 {
@@ -889,8 +902,11 @@ If you are using gcc, you might need to set `GCC_AR` and `GCC_RANLIB` cmake cach
 If you are using clang, you may need to set `LLVMAR_EXECUTABLE`, `LLVMNM_EXECUTABLE` and `LLVMRANLIB_EXECUTABLE` cmake cache variables.
 
 ## Linking against the library
-When using gcc, it is necessary to link against pthread to avoid runtime exceptions.
-This is due to how gcc implements std::thread.
+
+When the library is built using GCC it is necessary to link with `-pthread`,
+due to how GCC implements `std::thread`.
+
+For GCC 4.x failing to link to pthreads will lead to runtime exceptions, not linker errors.
 See [issue #67](https://github.com/google/benchmark/issues/67) for more details.
 
 ## Compiler Support
@@ -924,8 +940,11 @@ sudo cpupower frequency-set --governor powersave
 
 # Known Issues
 
-### Windows
+### Windows with CMake
 
 * Users must manually link `shlwapi.lib`. Failure to do so may result
 in unresolved symbols.
 
+### Solaris
+
+* Users must explicitly link with kstat library (-lkstat compilation flag).
