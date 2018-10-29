@@ -16,7 +16,11 @@ option(BENCHMARK_ENABLE_TESTING "Enable testing of the benchmark library." ON)
 option(BENCHMARK_ENABLE_EXCEPTIONS "Enable the use of exceptions in the benchmark library." ON)
 option(BENCHMARK_ENABLE_LTO "Enable link time optimisation of the benchmark library." OFF)
 option(BENCHMARK_USE_LIBCXX "Build and test using libc++ as the standard library." OFF)
-option(BENCHMARK_BUILD_32_BITS "Build a 32 bit version of the library." OFF)
+if(NOT MSVC)
+  option(BENCHMARK_BUILD_32_BITS "Build a 32 bit version of the library." OFF)
+else()
+  set(BENCHMARK_BUILD_32_BITS OFF CACHE BOOL "Build a 32 bit version of the library - unsupported when using MSVC)" FORCE)
+endif()
 option(BENCHMARK_ENABLE_INSTALL "Enable installation of benchmark. (Projects embedding benchmark may want to turn this OFF.)" ON)
 
 # Allow unmet dependencies to be met using CMake's ExternalProject mechanics, which
@@ -90,7 +94,7 @@ if (BENCHMARK_BUILD_32_BITS)
   add_required_cxx_compiler_flag(-m32)
 endif()
 
-if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+if (MSVC)
   # Turn compiler warnings up to 11
   string(REGEX REPLACE "[-/]W[1-4]" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4")
@@ -142,6 +146,12 @@ else()
   # Disable warnings regarding deprecated parts of the library while building
   # and testing those parts of the library.
   add_cxx_compiler_flag(-Wno-deprecated-declarations)
+  if (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+    # Intel silently ignores '-Wno-deprecated-declarations',
+    # warning no. 1786 must be explicitly disabled.
+    # See #631 for rationale.
+    add_cxx_compiler_flag(-wd1786)
+  endif()
   # Disable deprecation warnings for release builds (when -Werror is enabled).
   add_cxx_compiler_flag(-Wno-deprecated RELEASE)
   add_cxx_compiler_flag(-Wno-deprecated RELWITHDEBINFO)
@@ -183,7 +193,7 @@ else()
       if (GCC_RANLIB)
         set(CMAKE_RANLIB ${GCC_RANLIB})
       endif()
-    elseif("${CMAKE_C_COMPILER_ID}" STREQUAL "Clang")
+    elseif("${CMAKE_C_COMPILER_ID}" MATCHES "Clang")
       include(llvm-toolchain)
     endif()
   endif()
@@ -208,7 +218,7 @@ else()
 endif()
 
 if (BENCHMARK_USE_LIBCXX)
-  if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+  if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
     add_cxx_compiler_flag(-stdlib=libc++)
   elseif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU" OR
           "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Intel")
