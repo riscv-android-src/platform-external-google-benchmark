@@ -17,11 +17,6 @@
 cc_library_static {
     name: "libgoogle-benchmark",
     host_supported: true,
-    target: {
-        darwin: {
-            enabled: false,
-        },
-    },
     local_include_dirs: ["include"],
     cflags: [
         "-DBENCHMARK_ANDROID",
