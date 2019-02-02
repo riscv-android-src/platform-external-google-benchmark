@@ -77,6 +77,8 @@ bool JSONReporter::ReportContext(const Context& context) {
   std::string walltime_value = LocalDateTimeString();
   out << indent << FormatKV("date", walltime_value) << ",\n";
 
+  out << indent << FormatKV("host_name", context.sys_info.name) << ",\n";
+
   if (Context::executable_name) {
     // windows uses backslash for its path separator,
     // which must be escaped in JSON otherwise it blows up conforming JSON
@@ -116,6 +118,12 @@ bool JSONReporter::ReportContext(const Context& context) {
   }
   indent = std::string(4, ' ');
   out << indent << "],\n";
+  out << indent << "\"load_avg\": [";
+  for (auto it = info.load_avg.begin(); it != info.load_avg.end();) {
+    out << *it++;
+    if (it != info.load_avg.end()) out << ",";
+  }
+  out << "],\n";
 
 #if defined(NDEBUG)
   const char build_type[] = "release";
