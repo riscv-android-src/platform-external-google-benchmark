@@ -19,6 +19,7 @@
 #undef StrCat  // Don't let StrCat in string_util.h be renamed to lstrcatA
 #include <versionhelpers.h>
 #include <windows.h>
+#include <codecvt>
 #else
 #include <fcntl.h>
 #ifndef BENCHMARK_OS_FUCHSIA
@@ -52,6 +53,7 @@
 #include <limits>
 #include <memory>
 #include <sstream>
+#include <locale>
 
 #include "check.h"
 #include "cycleclock.h"
@@ -366,6 +368,35 @@ std::vector<CPUInfo::CacheInfo> GetCacheSizes() {
 #endif
 }
 
+std::string GetSystemName() {
+#if defined(BENCHMARK_OS_WINDOWS)
+  std::string str;
+  const unsigned COUNT = MAX_COMPUTERNAME_LENGTH+1;
+  TCHAR  hostname[COUNT] = {'\0'};
+  DWORD DWCOUNT = COUNT;
+  if (!GetComputerName(hostname, &DWCOUNT))
+    return std::string("");
+#ifndef UNICODE
+  str = std::string(hostname, DWCOUNT);
+#else
+  //Using wstring_convert, Is deprecated in C++17
+  using convert_type = std::codecvt_utf8<wchar_t>;
+  std::wstring_convert<convert_type, wchar_t> converter;
+  std::wstring wStr(hostname, DWCOUNT);
+  str = converter.to_bytes(wStr);
+#endif
+  return str;
+#else // defined(BENCHMARK_OS_WINDOWS)
+#ifdef BENCHMARK_OS_MACOSX //Mac Doesnt have HOST_NAME_MAX defined
+#define HOST_NAME_MAX 64
+#endif
+  char hostname[HOST_NAME_MAX];
+  int retVal = gethostname(hostname, HOST_NAME_MAX);
+  if (retVal != 0) return std::string("");
+  return std::string(hostname);
+#endif // Catch-all POSIX block.
+}
+
 int GetNumCPUs() {
 #ifdef BENCHMARK_HAS_SYSCTL
   int NumCPU = -1;
@@ -577,6 +608,24 @@ double GetCPUCyclesPerSecond() {
   return static_cast<double>(cycleclock::Now() - start_ticks);
 }
 
+std::vector<double> GetLoadAvg() {
+#if defined BENCHMARK_OS_FREEBSD || defined(BENCHMARK_OS_LINUX) || \
+    defined BENCHMARK_OS_MACOSX || defined BENCHMARK_OS_NETBSD ||  \
+    defined BENCHMARK_OS_OPENBSD
+  constexpr int kMaxSamples = 3;
+  std::vector<double> res(kMaxSamples, 0.0);
+  const int nelem = getloadavg(res.data(), kMaxSamples);
+  if (nelem < 1) {
+    res.clear();
+  } else {
+    res.resize(nelem);
+  }
+  return res;
+#else
+  return {};
+#endif
+}
+
 }  // end namespace
 
 const CPUInfo& CPUInfo::Get() {
@@ -588,6 +637,14 @@ CPUInfo::CPUInfo()
     : num_cpus(GetNumCPUs()),
       cycles_per_second(GetCPUCyclesPerSecond()),
       caches(GetCacheSizes()),
-      scaling_enabled(CpuScalingEnabled(num_cpus)) {}
+      scaling_enabled(CpuScalingEnabled(num_cpus)),
+      load_avg(GetLoadAvg()) {}
 
+
+const SystemInfo& SystemInfo::Get() {
+  static const SystemInfo* info = new SystemInfo();
+  return *info;
+}
+
+SystemInfo::SystemInfo() : name(GetSystemName()) {}
 }  // end namespace benchmark
