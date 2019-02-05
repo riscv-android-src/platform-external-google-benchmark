@@ -421,6 +421,7 @@ typedef double(BigOFunc)(int64_t);
 // statistics over all the measurements of some type
 typedef double(StatisticsFunc)(const std::vector<double>&);
 
+namespace internal {
 struct Statistics {
   std::string name_;
   StatisticsFunc* compute_;
@@ -429,7 +430,6 @@ struct Statistics {
       : name_(name), compute_(compute) {}
 };
 
-namespace internal {
 struct BenchmarkInstance;
 class ThreadTimer;
 class ThreadManager;
@@ -1284,12 +1284,22 @@ struct CPUInfo {
   double cycles_per_second;
   std::vector<CacheInfo> caches;
   bool scaling_enabled;
+  std::vector<double> load_avg;
 
   static const CPUInfo& Get();
 
  private:
   CPUInfo();
   BENCHMARK_DISALLOW_COPY_AND_ASSIGN(CPUInfo);
+};
+
+//Adding Struct for System Information
+struct SystemInfo {
+  std::string name;
+  static const SystemInfo& Get();
+ private:
+  SystemInfo();
+  BENCHMARK_DISALLOW_COPY_AND_ASSIGN(SystemInfo);
 };
 
 // Interface for custom benchmark result printers.
@@ -1301,6 +1311,7 @@ class BenchmarkReporter {
  public:
   struct Context {
     CPUInfo const& cpu_info;
+    SystemInfo const& sys_info;
     // The number of chars in the longest benchmark name.
     size_t name_field_width;
     static const char* executable_name;
@@ -1362,7 +1373,7 @@ class BenchmarkReporter {
     int64_t complexity_n;
 
     // what statistics to compute from the measurements
-    const std::vector<Statistics>* statistics;
+    const std::vector<internal::Statistics>* statistics;
 
     // Inform print function whether the current run is a complexity report
     bool report_big_o;
