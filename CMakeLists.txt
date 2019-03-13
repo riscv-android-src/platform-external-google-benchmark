@@ -183,6 +183,10 @@ else()
     add_definitions(-D_GNU_SOURCE=1)
   endif()
 
+  if (QNXNTO)
+    add_definitions(-D_QNX_SOURCE)
+  endif()
+
   # Link time optimisation
   if (BENCHMARK_ENABLE_LTO)
     add_cxx_compiler_flag(-flto)
@@ -251,6 +255,7 @@ if (NOT BENCHMARK_ENABLE_EXCEPTIONS AND HAVE_STD_REGEX
 endif()
 cxx_feature_check(STEADY_CLOCK)
 # Ensure we have pthreads
+set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
 # Set up directories
