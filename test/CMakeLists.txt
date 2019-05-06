@@ -125,6 +125,9 @@ add_test(templated_fixture_test templated_fixture_test --benchmark_min_time=0.01
 compile_output_test(user_counters_test)
 add_test(user_counters_test user_counters_test --benchmark_min_time=0.01)
 
+compile_output_test(internal_threading_test)
+add_test(internal_threading_test internal_threading_test --benchmark_min_time=0.01)
+
 compile_output_test(report_aggregates_only_test)
 add_test(report_aggregates_only_test report_aggregates_only_test --benchmark_min_time=0.01)
 
@@ -175,14 +178,8 @@ add_test(complexity_benchmark complexity_test --benchmark_min_time=${COMPLEXITY_
 if (BENCHMARK_ENABLE_GTEST_TESTS)
   macro(compile_gtest name)
     add_executable(${name} "${name}.cc")
-    if (TARGET googletest)
-      add_dependencies(${name} googletest)
-    endif()
-    if (GTEST_INCLUDE_DIRS)
-      target_include_directories(${name} PRIVATE ${GTEST_INCLUDE_DIRS})
-    endif()
     target_link_libraries(${name} benchmark
-        ${GTEST_BOTH_LIBRARIES} ${CMAKE_THREAD_LIBS_INIT})
+        gmock_main ${CMAKE_THREAD_LIBS_INIT})
   endmacro(compile_gtest)
 
   macro(add_gtest name)
@@ -191,6 +188,8 @@ if (BENCHMARK_ENABLE_GTEST_TESTS)
   endmacro()
 
   add_gtest(benchmark_gtest)
+  add_gtest(benchmark_name_gtest)
+  add_gtest(commandlineflags_gtest)
   add_gtest(statistics_gtest)
   add_gtest(string_util_gtest)
 endif(BENCHMARK_ENABLE_GTEST_TESTS)
