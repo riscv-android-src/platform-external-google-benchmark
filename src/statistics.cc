@@ -147,8 +147,11 @@ std::vector<BenchmarkReporter::Run> ComputeStats(
   for (const auto& Stat : *reports[0].statistics) {
     // Get the data from the accumulator to BenchmarkReporter::Run's.
     Run data;
-    data.run_name = reports[0].benchmark_name();
+    data.run_name = reports[0].run_name;
     data.run_type = BenchmarkReporter::Run::RT_Aggregate;
+    data.threads = reports[0].threads;
+    data.repetitions = reports[0].repetitions;
+    data.repetition_index = Run::no_repetition_index;
     data.aggregate_name = Stat.name_;
     data.report_label = report_label;
 
