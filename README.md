@@ -65,12 +65,15 @@ versions of build tools._
 $ git clone https://github.com/google/benchmark.git
 # Benchmark requires Google Test as a dependency. Add the source tree as a subdirectory.
 $ git clone https://github.com/google/googletest.git benchmark/googletest
+# Go to the library root directory
+$ cd benchmark
 # Make a build directory to place the build output.
 $ mkdir build && cd build
 # Generate a Makefile with cmake.
 # Use cmake -G <generator> to generate a different file type.
-$ cmake ../benchmark
+$ cmake ../
 # Build the library.
+# Use make -j<number_of_parallel_jobs> to speed up the build process, e.g. make -j8 .
 $ make
 ```
 This builds the `benchmark` and `benchmark_main` libraries and tests.
@@ -78,12 +81,12 @@ On a unix system, the build directory should now look something like this:
 
 ```
 /benchmark
-/build
-  /src
-    /libbenchmark.a
-    /libbenchmark_main.a
-  /test
-    ...
+  /build
+    /src
+      /libbenchmark.a
+      /libbenchmark_main.a
+    /test
+      ...
 ```
 
 Next, you can run the tests to check the build.
@@ -697,7 +700,7 @@ When you're compiling in C++11 mode or later you can use `insert()` with
 
 #### Counter Reporting
 
-When using the console reporter, by default, user counters are are printed at
+When using the console reporter, by default, user counters are printed at
 the end after the table, the same way as ``bytes_processed`` and
 ``items_processed``. This is best for cases in which there are few counters,
 or where there are only a couple of lines per benchmark. Here's an example of
@@ -849,7 +852,7 @@ BENCHMARK(BM_OpenMP)->Range(8, 8<<10)->MeasureProcessCPUTime()->UseRealTime();
 Normally, the entire duration of the work loop (`for (auto _ : state) {}`)
 is measured. But sometimes, it is necessary to do some work inside of
 that loop, every iteration, but without counting that time to the benchmark time.
-That is possible, althought it is not recommended, since it has high overhead.
+That is possible, although it is not recommended, since it has high overhead.
 
 ```c++
 static void BM_SetInsert_With_Timer_Control(benchmark::State& state) {
@@ -1088,7 +1091,7 @@ static void BM_test(benchmark::State& state) {
       state.SkipWithError("Resource is not good!");
       // KeepRunning() loop will not be entered.
   }
-  for (state.KeepRunning()) {
+  while (state.KeepRunning()) {
       auto data = resource.read_data();
       if (!resource.good()) {
         state.SkipWithError("Failed to read data!");
