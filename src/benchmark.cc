@@ -121,8 +121,8 @@ void UseCharPointer(char const volatile*) {}
 
 }  // namespace internal
 
-State::State(size_t max_iters, const std::vector<int64_t>& ranges, int thread_i,
-             int n_threads, internal::ThreadTimer* timer,
+State::State(IterationCount max_iters, const std::vector<int64_t>& ranges,
+             int thread_i, int n_threads, internal::ThreadTimer* timer,
              internal::ThreadManager* manager)
     : total_iterations_(0),
       batch_leftover_(0),
@@ -289,6 +289,13 @@ void RunBenchmarks(const std::vector<BenchmarkInstance>& benchmarks,
   flushStreams(file_reporter);
 }
 
+// Disable deprecated warnings temporarily because we need to reference
+// CSVReporter but don't want to trigger -Werror=-Wdeprecated
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated"
+#endif
+
 std::unique_ptr<BenchmarkReporter> CreateReporter(
     std::string const& name, ConsoleReporter::OutputOptions output_opts) {
   typedef std::unique_ptr<BenchmarkReporter> PtrType;
@@ -303,6 +310,11 @@ std::unique_ptr<BenchmarkReporter> CreateReporter(
     std::exit(1);
   }
 }
+
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
+
 
 }  // end namespace
 
