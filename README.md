@@ -52,6 +52,8 @@ The following minimum versions are required to build the library:
 * Visual Studio 14 2015
 * Intel 2015 Update 1
 
+See [Platform-Specific Build Instructions](#platform-specific-build-instructions).
+
 ## Installation
 
 This describes the installation process using cmake. As pre-requisites, you'll
@@ -180,8 +182,8 @@ library will be under the build directory you created.
 ```bash
 # Example on linux after running the build steps above. Assumes the
 # `benchmark` and `build` directories are under the current directory.
-$ g++ -std=c++11 -isystem benchmark/include -Lbuild/src -lpthread \
-  -lbenchmark mybenchmark.cc -o mybenchmark
+$ g++ mybenchmark.cc -std=c++11 -isystem benchmark/include \
+  -Lbenchmark/build/src -lbenchmark -lpthread -o mybenchmark
 ```
 
 Alternatively, link against the `benchmark_main` library and remove
@@ -190,7 +192,9 @@ Alternatively, link against the `benchmark_main` library and remove
 The compiled executable will run all benchmarks by default. Pass the `--help`
 flag for option information or see the guide below.
 
-### Platform-specific instructions
+## Platform Specific Build Instructions
+
+### Building with GCC
 
 When the library is built using GCC it is necessary to link with the pthread
 library due to how GCC implements `std::thread`. Failing to link to pthread will
@@ -200,8 +204,34 @@ can link to pthread by adding `-pthread` to your linker command. Note, you can
 also use `-lpthread`, but there are potential issues with ordering of command
 line parameters if you use that.
 
-If you're running benchmarks on Windows, the shlwapi library (`-lshlwapi`) is
-also required.
+### Building with Visual Studio 2015 or 2017
+
+The `shlwapi` library (`-lshlwapi`) is required to support a call to `CPUInfo` which reads the registry. Either add `shlwapi.lib` under `[ Configuration Properties > Linker > Input ]`, or use the following:
+
+```
+// Alternatively, can add libraries using linker options.
+#ifdef _WIN32
+#pragma comment ( lib, "Shlwapi.lib" )
+#ifdef _DEBUG
+#pragma comment ( lib, "benchmarkd.lib" )
+#else
+#pragma comment ( lib, "benchmark.lib" )
+#endif
+#endif
+```
+
+Can also use the graphical version of CMake:
+* Open `CMake GUI`.
+* Under `Where to build the binaries`, same path as source plus `build`.
+* Under `CMAKE_INSTALL_PREFIX`, same path as source plus `install`.
+* Click `Configure`, `Generate`, `Open Project`.
+* If build fails, try deleting entire directory and starting again, or unticking options to build less.
+
+### Building with Intel 2015 Update 1 or Intel System Studio Update 4
+
+See instructions for building with Visual Studio. Once built, right click on the solution and change the build to Intel.
+
+### Building on Solaris
 
 If you're running benchmarks on solaris, you'll want the kstat library linked in
 too (`-lkstat`).
@@ -843,7 +873,7 @@ static void MyMain(int size) {
 
 static void BM_OpenMP(benchmark::State& state) {
   for (auto _ : state)
-    MyMain(state.range(0);
+    MyMain(state.range(0));
 }
 
 // Measure the time spent by the main thread, use it to decide for how long to
@@ -920,7 +950,7 @@ static void BM_ManualTiming(benchmark::State& state) {
     auto start = std::chrono::high_resolution_clock::now();
     // Simulate some useful workload with a sleep
     std::this_thread::sleep_for(sleep_duration);
-    auto end   = std::chrono::high_resolution_clock::now();
+    auto end = std::chrono::high_resolution_clock::now();
 
     auto elapsed_seconds =
       std::chrono::duration_cast<std::chrono::duration<double>>(
