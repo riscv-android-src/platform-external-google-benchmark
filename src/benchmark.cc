@@ -73,14 +73,14 @@ DEFINE_int32(benchmark_repetitions, 1);
 // Report the result of each benchmark repetitions. When 'true' is specified
 // only the mean, standard deviation, and other statistics are reported for
 // repeated benchmarks. Affects all reporters.
-DEFINE_bool( benchmark_report_aggregates_only, false);
+DEFINE_bool(benchmark_report_aggregates_only, false);
 
 // Display the result of each benchmark repetitions. When 'true' is specified
 // only the mean, standard deviation, and other statistics are displayed for
 // repeated benchmarks. Unlike benchmark_report_aggregates_only, only affects
 // the display reporter, but  *NOT* file reporter, which will still contain
 // all the output.
-DEFINE_bool( benchmark_display_aggregates_only, false);
+DEFINE_bool(benchmark_display_aggregates_only, false);
 
 // The format to use for console output.
 // Valid values are 'console', 'json', or 'csv'.
@@ -142,7 +142,7 @@ State::State(IterationCount max_iters, const std::vector<int64_t>& ranges,
   // which must be suppressed.
 #if defined(__INTEL_COMPILER)
 #pragma warning push
-#pragma warning(disable:1875)
+#pragma warning(disable : 1875)
 #elif defined(__GNUC__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Winvalid-offsetof"
@@ -309,7 +309,6 @@ std::unique_ptr<BenchmarkReporter> CreateReporter(
 #pragma GCC diagnostic pop
 #endif
 
-
 }  // end namespace
 
 bool IsZero(double n) {
@@ -318,7 +317,7 @@ bool IsZero(double n) {
 
 ConsoleReporter::OutputOptions GetOutputOptions(bool force_no_color) {
   int output_opts = ConsoleReporter::OO_Defaults;
-  auto is_benchmark_color = [force_no_color] () -> bool {
+  auto is_benchmark_color = [force_no_color]() -> bool {
     if (force_no_color) {
       return false;
     }
@@ -436,7 +435,7 @@ void ParseCommandLineFlags(int* argc, char** argv) {
   using namespace benchmark;
   BenchmarkReporter::Context::executable_name =
       (argc && *argc > 0) ? argv[0] : "unknown";
-  for (int i = 1; i < *argc; ++i) {
+  for (int i = 1; argc && i < *argc; ++i) {
     if (ParseBoolFlag(argv[i], "benchmark_list_tests",
                       &FLAGS_benchmark_list_tests) ||
         ParseStringFlag(argv[i], "benchmark_filter", &FLAGS_benchmark_filter) ||
