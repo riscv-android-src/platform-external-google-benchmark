@@ -178,8 +178,8 @@ BENCHMARK_MAIN();
 ```
 
 To run the benchmark, compile and link against the `benchmark` library
-(libbenchmark.a/.so). If you followed the build steps above, this
-library will be under the build directory you created.
+(libbenchmark.a/.so). If you followed the build steps above, this library will 
+be under the build directory you created.
 
 ```bash
 # Example on linux after running the build steps above. Assumes the
@@ -193,6 +193,26 @@ Alternatively, link against the `benchmark_main` library and remove
 
 The compiled executable will run all benchmarks by default. Pass the `--help`
 flag for option information or see the guide below.
+
+### Usage with CMake
+
+If using CMake, it is recommended to link against the project-provided
+`benchmark::benchmark` and `benchmark::benchmark_main` targets using
+`target_link_libraries`.
+It is possible to use ```find_package``` to import an installed version of the
+library.
+```cmake
+find_package(benchmark REQUIRED)
+```
+Alternatively, ```add_subdirectory``` will incorporate the library directly in
+to one's CMake project.
+```cmake
+add_subdirectory(benchmark)
+```
+Either way, link to the library as follows.
+```cmake
+target_link_libraries(MyTarget benchmark::benchmark)
+```
 
 ## Platform Specific Build Instructions
 
@@ -602,7 +622,7 @@ that might be used to customize high-order term calculation.
 
 ```c++
 BENCHMARK(BM_StringCompare)->RangeMultiplier(2)
-    ->Range(1<<10, 1<<18)->Complexity([](int64_t n)->double{return n; });
+    ->Range(1<<10, 1<<18)->Complexity([](benchmark::IterationCount n)->double{return n; });
 ```
 
 <a name="templated-benchmarks" />
@@ -1164,7 +1184,9 @@ Users must explicitly exit the loop, otherwise all iterations will be performed.
 Users may explicitly return to exit the benchmark immediately.
 
 The `SkipWithError(...)` function may be used at any point within the benchmark,
-including before and after the benchmark loop.
+including before and after the benchmark loop. Moreover, if `SkipWithError(...)`
+has been used, it is not required to reach the benchmark loop and one may return
+from the benchmark function early.
 
 For example:
 
@@ -1172,24 +1194,32 @@ For example:
 static void BM_test(benchmark::State& state) {
   auto resource = GetResource();
   if (!resource.good()) {
-      state.SkipWithError("Resource is not good!");
-      // KeepRunning() loop will not be entered.
+    state.SkipWithError("Resource is not good!");
+    // KeepRunning() loop will not be entered.
   }
   while (state.KeepRunning()) {
-      auto data = resource.read_data();
-      if (!resource.good()) {
-        state.SkipWithError("Failed to read data!");
-        break; // Needed to skip the rest of the iteration.
-     }
-     do_stuff(data);
+    auto data = resource.read_data();
+    if (!resource.good()) {
+      state.SkipWithError("Failed to read data!");
+      break; // Needed to skip the rest of the iteration.
+    }
+    do_stuff(data);
   }
 }
 
 static void BM_test_ranged_fo(benchmark::State & state) {
-  state.SkipWithError("test will not be entered");
+  auto resource = GetResource();
+  if (!resource.good()) {
+    state.SkipWithError("Resource is not good!");
+    return; // Early return is allowed when SkipWithError() has been used.
+  }
   for (auto _ : state) {
-    state.SkipWithError("Failed!");
-    break; // REQUIRED to prevent all further iterations.
+    auto data = resource.read_data();
+    if (!resource.good()) {
+      state.SkipWithError("Failed to read data!");
+      break; // REQUIRED to prevent all further iterations.
+    }
+    do_stuff(data);
   }
 }
 ```
