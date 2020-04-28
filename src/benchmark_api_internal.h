@@ -16,13 +16,12 @@ namespace internal {
 
 // Information kept per benchmark we may want to run
 struct BenchmarkInstance {
-  BenchmarkName name;
+  std::string name;
   Benchmark* benchmark;
   AggregationReportMode aggregation_report_mode;
   std::vector<int64_t> arg;
   TimeUnit time_unit;
   int range_multiplier;
-  bool measure_process_cpu_time;
   bool use_real_time;
   bool use_manual_time;
   BigO complexity;
@@ -32,10 +31,10 @@ struct BenchmarkInstance {
   bool last_benchmark_instance;
   int repetitions;
   double min_time;
-  IterationCount iterations;
+  size_t iterations;
   int threads;  // Number of concurrent threads to us
 
-  State Run(IterationCount iters, int thread_id, internal::ThreadTimer* timer,
+  State Run(size_t iters, int thread_id, internal::ThreadTimer* timer,
             internal::ThreadManager* manager) const;
 };
 

@@ -28,8 +28,6 @@ int AddComplexityTest(std::string test_name, std::string big_o_test_name,
   AddCases(TC_JSONOut, {{"\"name\": \"%bigo_name\",$"},
                         {"\"run_name\": \"%name\",$", MR_Next},
                         {"\"run_type\": \"aggregate\",$", MR_Next},
-                        {"\"repetitions\": %int,$", MR_Next},
-                        {"\"threads\": 1,$", MR_Next},
                         {"\"aggregate_name\": \"BigO\",$", MR_Next},
                         {"\"cpu_coefficient\": %float,$", MR_Next},
                         {"\"real_coefficient\": %float,$", MR_Next},
@@ -39,8 +37,6 @@ int AddComplexityTest(std::string test_name, std::string big_o_test_name,
                         {"\"name\": \"%rms_name\",$"},
                         {"\"run_name\": \"%name\",$", MR_Next},
                         {"\"run_type\": \"aggregate\",$", MR_Next},
-                        {"\"repetitions\": %int,$", MR_Next},
-                        {"\"threads\": 1,$", MR_Next},
                         {"\"aggregate_name\": \"RMS\",$", MR_Next},
                         {"\"rms\": %float$", MR_Next},
                         {"}", MR_Next}});
@@ -66,9 +62,9 @@ void BM_Complexity_O1(benchmark::State& state) {
 }
 BENCHMARK(BM_Complexity_O1)->Range(1, 1 << 18)->Complexity(benchmark::o1);
 BENCHMARK(BM_Complexity_O1)->Range(1, 1 << 18)->Complexity();
-BENCHMARK(BM_Complexity_O1)
-    ->Range(1, 1 << 18)
-    ->Complexity([](benchmark::IterationCount) { return 1.0; });
+BENCHMARK(BM_Complexity_O1)->Range(1, 1 << 18)->Complexity([](int64_t) {
+  return 1.0;
+});
 
 const char *one_test_name = "BM_Complexity_O1";
 const char *big_o_1_test_name = "BM_Complexity_O1_BigO";
@@ -121,9 +117,7 @@ BENCHMARK(BM_Complexity_O_N)
 BENCHMARK(BM_Complexity_O_N)
     ->RangeMultiplier(2)
     ->Range(1 << 10, 1 << 16)
-    ->Complexity([](benchmark::IterationCount n) -> double {
-      return static_cast<double>(n);
-    });
+    ->Complexity([](int64_t n) -> double { return static_cast<double>(n); });
 BENCHMARK(BM_Complexity_O_N)
     ->RangeMultiplier(2)
     ->Range(1 << 10, 1 << 16)
@@ -162,9 +156,7 @@ BENCHMARK(BM_Complexity_O_N_log_N)
 BENCHMARK(BM_Complexity_O_N_log_N)
     ->RangeMultiplier(2)
     ->Range(1 << 10, 1 << 16)
-    ->Complexity([](benchmark::IterationCount n) {
-      return kLog2E * n * log(static_cast<double>(n));
-    });
+    ->Complexity([](int64_t n) { return kLog2E * n * log(static_cast<double>(n)); });
 BENCHMARK(BM_Complexity_O_N_log_N)
     ->RangeMultiplier(2)
     ->Range(1 << 10, 1 << 16)
@@ -183,28 +175,6 @@ ADD_COMPLEXITY_CASES(n_lg_n_test_name, big_o_n_lg_n_test_name,
 // Add lambda tests
 ADD_COMPLEXITY_CASES(n_lg_n_test_name, big_o_n_lg_n_test_name,
                      rms_o_n_lg_n_test_name, lambda_big_o_n_lg_n);
-
-// ========================================================================= //
-// -------- Testing formatting of Complexity with captured args ------------ //
-// ========================================================================= //
-
-void BM_ComplexityCaptureArgs(benchmark::State& state, int n) {
-  for (auto _ : state) {
-    // This test requires a non-zero CPU time to avoid divide-by-zero
-    benchmark::DoNotOptimize(state.iterations());
-  }
-  state.SetComplexityN(n);
-}
-
-BENCHMARK_CAPTURE(BM_ComplexityCaptureArgs, capture_test, 100)
-    ->Complexity(benchmark::oN)
-    ->Ranges({{1, 2}, {3, 4}});
-
-const std::string complexity_capture_name =
-    "BM_ComplexityCaptureArgs/capture_test";
-
-ADD_COMPLEXITY_CASES(complexity_capture_name, complexity_capture_name + "_BigO",
-                     complexity_capture_name + "_RMS", "N");
 
 // ========================================================================= //
 // --------------------------- TEST CASES END ------------------------------ //

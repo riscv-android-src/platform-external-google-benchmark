@@ -40,7 +40,8 @@ class MultipleRangesFixture : public ::benchmark::Fixture {
   // NOTE: This is not TearDown as we want to check after _all_ runs are
   // complete.
   virtual ~MultipleRangesFixture() {
-    if (actualValues != expectedValues) {
+    assert(actualValues.size() == expectedValues.size());
+    if (actualValues.size() != expectedValues.size()) {
       std::cout << "EXPECTED\n";
       for (auto v : expectedValues) {
         std::cout << "{";

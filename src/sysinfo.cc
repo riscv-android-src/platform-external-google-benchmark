@@ -429,20 +429,11 @@ std::string GetSystemName() {
 #endif
   return str;
 #else // defined(BENCHMARK_OS_WINDOWS)
-#ifndef HOST_NAME_MAX
-#ifdef BENCHMARK_HAS_SYSCTL // BSD/Mac Doesnt have HOST_NAME_MAX defined
-#define HOST_NAME_MAX 64
-#elif defined(BENCHMARK_OS_NACL)
+#ifdef BENCHMARK_OS_MACOSX //Mac Doesnt have HOST_NAME_MAX defined
 #define HOST_NAME_MAX 64
 #elif defined(BENCHMARK_OS_QNX)
 #define HOST_NAME_MAX 154
-#elif defined(BENCHMARK_OS_RTEMS)
-#define HOST_NAME_MAX 256
-#else
-#warning "HOST_NAME_MAX not defined. using 64"
-#define HOST_NAME_MAX 64
 #endif
-#endif // def HOST_NAME_MAX
   char hostname[HOST_NAME_MAX];
   int retVal = gethostname(hostname, HOST_NAME_MAX);
   if (retVal != 0) return std::string("");
@@ -667,9 +658,9 @@ double GetCPUCyclesPerSecond() {
 }
 
 std::vector<double> GetLoadAvg() {
-#if (defined BENCHMARK_OS_FREEBSD || defined(BENCHMARK_OS_LINUX) || \
+#if defined BENCHMARK_OS_FREEBSD || defined(BENCHMARK_OS_LINUX) || \
     defined BENCHMARK_OS_MACOSX || defined BENCHMARK_OS_NETBSD ||  \
-    defined BENCHMARK_OS_OPENBSD) && !defined(__ANDROID__)
+    defined BENCHMARK_OS_OPENBSD
   constexpr int kMaxSamples = 3;
   std::vector<double> res(kMaxSamples, 0.0);
   const int nelem = getloadavg(res.data(), kMaxSamples);

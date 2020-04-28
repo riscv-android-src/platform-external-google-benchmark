@@ -1,18 +1,17 @@
-cmake_minimum_required (VERSION 3.5.1)
+cmake_minimum_required (VERSION 2.8.12)
 
 foreach(p
     CMP0048 # OK to clear PROJECT_VERSION on project()
     CMP0054 # CMake 3.1
     CMP0056 # export EXE_LINKER_FLAGS to try_run
     CMP0057 # Support no if() IN_LIST operator
-    CMP0063 # Honor visibility properties for all targets
     )
   if(POLICY ${p})
     cmake_policy(SET ${p} NEW)
   endif()
 endforeach()
 
-project (benchmark CXX)
+project (benchmark)
 
 option(BENCHMARK_ENABLE_TESTING "Enable testing of the benchmark library." ON)
 option(BENCHMARK_ENABLE_EXCEPTIONS "Enable the use of exceptions in the benchmark library." ON)
@@ -33,7 +32,6 @@ option(BENCHMARK_DOWNLOAD_DEPENDENCIES "Allow the downloading and in-tree buildi
 # in cases where it is not possible to build or find a valid version of gtest.
 option(BENCHMARK_ENABLE_GTEST_TESTS "Enable building the unit tests which depend on gtest" ON)
 
-set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 set(ENABLE_ASSEMBLY_TESTS_DEFAULT OFF)
 function(should_enable_assembly_tests)
   if(CMAKE_BUILD_TYPE)
@@ -192,7 +190,7 @@ else()
   # Link time optimisation
   if (BENCHMARK_ENABLE_LTO)
     add_cxx_compiler_flag(-flto)
-    if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+    if ("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
       find_program(GCC_AR gcc-ar)
       if (GCC_AR)
         set(CMAKE_AR ${GCC_AR})
@@ -201,7 +199,7 @@ else()
       if (GCC_RANLIB)
         set(CMAKE_RANLIB ${GCC_RANLIB})
       endif()
-    elseif("${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
+    elseif("${CMAKE_C_COMPILER_ID}" MATCHES "Clang")
       include(llvm-toolchain)
     endif()
   endif()
@@ -268,10 +266,8 @@ add_subdirectory(src)
 
 if (BENCHMARK_ENABLE_TESTING)
   enable_testing()
-  if (BENCHMARK_ENABLE_GTEST_TESTS AND
-      NOT (TARGET gtest AND TARGET gtest_main AND
-           TARGET gmock AND TARGET gmock_main))
-    include(GoogleTest)
+  if (BENCHMARK_ENABLE_GTEST_TESTS)
+    include(HandleGTest)
   endif()
   add_subdirectory(test)
 endif()

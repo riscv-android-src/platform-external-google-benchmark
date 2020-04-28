@@ -9,10 +9,10 @@ third_party {
     type: GIT
     value: "https://github.com/google/benchmark.git"
   }
-  version: "c50ac68c50ff8da3827cd6720792117910d85666"
+  version: "d205ead299c7cddd5e1bc3478d57ad4320a4a53c"
   last_upgrade_date {
     year: 2019
-    month: 11
-    day: 6
+    month: 3
+    day: 4
   }
 }

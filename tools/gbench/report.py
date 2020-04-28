@@ -114,10 +114,6 @@ def intersect(list1, list2):
     return [x for x in list1 if x in list2]
 
 
-def is_potentially_comparable_benchmark(x):
-    return ('time_unit' in x and 'real_time' in x and 'cpu_time' in x)
-
-
 def partition_benchmarks(json1, json2):
     """
     While preserving the ordering, find benchmarks with the same names in
@@ -129,17 +125,10 @@ def partition_benchmarks(json1, json2):
     names = intersect(json1_unique_names, json2_unique_names)
     partitions = []
     for name in names:
-        time_unit = None
         # Pick the time unit from the first entry of the lhs benchmark.
-        # We should be careful not to crash with unexpected input.
-        for x in json1['benchmarks']:
-            if (x['name'] == name and is_potentially_comparable_benchmark(x)):
-                time_unit = x['time_unit']
-                break
-        if time_unit is None:
-            continue
+        time_unit = (x['time_unit']
+                     for x in json1['benchmarks'] if x['name'] == name).next()
         # Filter by name and time unit.
-        # All the repetitions are assumed to be comparable.
         lhs = [x for x in json1['benchmarks'] if x['name'] == name and
                x['time_unit'] == time_unit]
         rhs = [x for x in json2['benchmarks'] if x['name'] == name and
@@ -154,7 +143,11 @@ def extract_field(partition, field_name):
     rhs = [x[field_name] for x in partition[1]]
     return [lhs, rhs]
 
-def calc_utest(timings_cpu, timings_time):
+
+def print_utest(partition, utest_alpha, first_col_width, use_color=True):
+    timings_time = extract_field(partition, 'real_time')
+    timings_cpu = extract_field(partition, 'cpu_time')
+
     min_rep_cnt = min(len(timings_time[0]),
                       len(timings_time[1]),
                       len(timings_cpu[0]),
@@ -162,33 +155,21 @@ def calc_utest(timings_cpu, timings_time):
 
     # Does *everything* has at least UTEST_MIN_REPETITIONS repetitions?
     if min_rep_cnt < UTEST_MIN_REPETITIONS:
-        return False, None, None
+        return []
+
+    def get_utest_color(pval):
+        return BC_FAIL if pval >= utest_alpha else BC_OKGREEN
 
     time_pvalue = mannwhitneyu(
         timings_time[0], timings_time[1], alternative='two-sided').pvalue
     cpu_pvalue = mannwhitneyu(
         timings_cpu[0], timings_cpu[1], alternative='two-sided').pvalue
 
-    return (min_rep_cnt >= UTEST_OPTIMAL_REPETITIONS), cpu_pvalue, time_pvalue
-
-def print_utest(partition, utest_alpha, first_col_width, use_color=True):
-    def get_utest_color(pval):
-        return BC_FAIL if pval >= utest_alpha else BC_OKGREEN
-
-    timings_time = extract_field(partition, 'real_time')
-    timings_cpu = extract_field(partition, 'cpu_time')
-    have_optimal_repetitions, cpu_pvalue, time_pvalue = calc_utest(timings_cpu, timings_time)
-
-    # Check if we failed miserably with minimum required repetitions for utest
-    if not have_optimal_repetitions and cpu_pvalue is None and time_pvalue is None:
-        return []
-
     dsc = "U Test, Repetitions: {} vs {}".format(
         len(timings_cpu[0]), len(timings_cpu[1]))
     dsc_color = BC_OKGREEN
 
-    # We still got some results to show but issue a warning about it.
-    if not have_optimal_repetitions:
+    if min_rep_cnt < UTEST_OPTIMAL_REPETITIONS:
         dsc_color = BC_WARNING
         dsc += ". WARNING: Results unreliable! {}+ repetitions recommended.".format(
             UTEST_OPTIMAL_REPETITIONS)
@@ -349,7 +330,7 @@ class TestReportDifference(unittest.TestCase):
             ['BM_10PercentCPUToTime', '+0.1000',
                 '-0.1000', '100', '110', '100', '90'],
             ['BM_ThirdFaster', '-0.3333', '-0.3334', '100', '67', '100', '67'],
-            ['BM_NotBadTimeUnit', '-0.9000', '+0.2000', '0', '0', '0', '1'],
+            ['BM_BadTimeUnit', '-0.9000', '+0.2000', '0', '0', '0', '1'],
         ]
         json1, json2 = self.load_results()
         output_lines_with_header = generate_difference_report(
