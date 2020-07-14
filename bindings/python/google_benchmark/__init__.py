@@ -14,7 +14,7 @@
 """Python benchmarking utilities.
 
 Example usage:
-  import benchmark
+  import google_benchmark as benchmark
 
   @benchmark.register
   def my_benchmark(state):
@@ -28,7 +28,7 @@ Example usage:
 """
 
 from absl import app
-from benchmark import _benchmark
+from google_benchmark import _benchmark
 
 __all__ = [
     "register",
@@ -60,3 +60,8 @@ def _run_benchmarks(argv):
 
 def main(argv=None):
   return app.run(_run_benchmarks, argv=argv, flags_parser=_flags_parser)
+
+
+# Methods for use with custom main function.
+initialize = _benchmark.Initialize
+run_benchmarks = _benchmark.RunSpecifiedBenchmarks
