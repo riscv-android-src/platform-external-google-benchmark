@@ -9,11 +9,11 @@ third_party {
     type: GIT
     value: "https://github.com/google/benchmark.git"
   }
-  version: "37177a84b7e8d33696ea1e1854513cb0de3b4dc3"
+  version: "1302d2ce094a9753b0f81a81ea74c0fa71fae582"
   license_type: NOTICE
   last_upgrade_date {
     year: 2020
-    month: 7
+    month: 8
     day: 10
   }
 }
