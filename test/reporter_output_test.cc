@@ -15,7 +15,7 @@ ADD_CASES(TC_ConsoleOut, {{"^[-]+$", MR_Next},
 static int AddContextCases() {
   AddCases(TC_ConsoleErr,
            {
-               {"%int[-/]%int[-/]%int %int:%int:%int$", MR_Default},
+               {"^%int-%int-%intT%int:%int:%int[-+]%int:%int$", MR_Default},
                {"Running .*/reporter_output_test(\\.exe)?$", MR_Next},
                {"Run on \\(%int X %float MHz CPU s?\\)", MR_Next},
            });
@@ -28,8 +28,7 @@ static int AddContextCases() {
              MR_Next},
             {"\"num_cpus\": %int,$", MR_Next},
             {"\"mhz_per_cpu\": %float,$", MR_Next},
-            {"\"cpu_scaling_enabled\": ", MR_Next},
-            {"\"caches\": \\[$", MR_Next}});
+            {"\"caches\": \\[$", MR_Default}});
   auto const& Info = benchmark::CPUInfo::Get();
   auto const& Caches = Info.caches;
   if (!Caches.empty()) {
