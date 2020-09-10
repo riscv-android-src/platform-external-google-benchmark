@@ -34,4 +34,3 @@ new_local_repository(
     build_file = "@//bindings/python:python_headers.BUILD",
     path = "/usr/include/python3.6",  # May be overwritten by setup.py.
 )
-
