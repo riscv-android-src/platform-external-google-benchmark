@@ -176,6 +176,7 @@ BENCHMARK(BM_test)->Unit(benchmark::kMillisecond);
 #include <map>
 #include <set>
 #include <string>
+#include <utility>
 #include <vector>
 
 #if defined(BENCHMARK_HAS_CXX11)
@@ -827,6 +828,11 @@ class Benchmark {
   // REQUIRES: The function passed to the constructor must accept arg1, arg2 ...
   Benchmark* Ranges(const std::vector<std::pair<int64_t, int64_t> >& ranges);
 
+  // Run this benchmark once for each combination of values in the (cartesian)
+  // product of the supplied argument lists.
+  // REQUIRES: The function passed to the constructor must accept arg1, arg2 ...
+  Benchmark* ArgsProduct(const std::vector<std::vector<int64_t> >& arglists);
+
   // Equivalent to ArgNames({name})
   Benchmark* ArgName(const std::string& name);
 
@@ -1294,10 +1300,16 @@ struct CPUInfo {
     int num_sharing;
   };
 
+  enum Scaling {
+    UNKNOWN,
+    ENABLED,
+    DISABLED
+  };
+
   int num_cpus;
   double cycles_per_second;
   std::vector<CacheInfo> caches;
-  bool scaling_enabled;
+  Scaling scaling;
   std::vector<double> load_avg;
 
   static const CPUInfo& Get();
